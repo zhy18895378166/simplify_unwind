@@ -12,7 +12,7 @@
 
 
 extern int zhy_add(int a, int b);
-void func1(void) {
+static void func1(void) {
 	printf("add: 0x%x\n", zhy_add(4, 5));
 }
 
