@@ -137,22 +137,66 @@ def print_str_list(strs):
     for s in strs:
         print(s)
 
+def get_functions_info(debug_info_txt):
+    low_pc = r'DW_AT_low_pc\s*:\s*(0x[0-9a-fA-F]+)\n'
+    func_name = r'DW_AT_name\s*:\s*(?:\(.*?\):\s*)?(\w+)\n'
+    param = r'<2><[0-9a-f]+>.*?DW_TAG_formal_parameter.*?DW_AT_name\s*:\s*(?:\(.*?\):\s*)?(\w+)\n'
+
+    param_block= r'(?:.*?DW_TAG_formal_parameter)*' +r'.*?(?=DW_TAG_\w+|<\d+>|\Z|$)'  # 有bug，请修复，无法完全匹配
+
+    # 完整的函数匹配模式
+    func_pattern = re.compile(
+        r'<1><[0-9a-f]+>.*?DW_TAG_subprogram.*?' + 
+        func_name + r'.*?' + 
+        low_pc + 
+        #f"({param_block})",
+        r'(.*?)(?=<1>|$)',  # 捕获直到下一个函数或结尾
+        re.DOTALL
+    )
+
+    # 参数匹配模式
+    param_pattern = re.compile(param, re.DOTALL)
+
+    # 解析函数信息
+    functions = []
+    for func_match in func_pattern.finditer(debug_info_txt):
+        param_block = func_match.group(3)
+        func_info = {
+            'name': func_match.group(1),
+            'address': func_match.group(2),
+            'args': param_pattern.findall(param_block) if param_block else []
+        }
+        
+        functions.append(func_info)
+
+    # 打印结果
+    for func in functions:
+        print(f"Function: {func['name']} ({func['address']})")
+        if func['args']:
+            print("  Args:", ", ".join(func['args']))
+        else:
+            print("  No arguments")
+        print()
+
+
 def main():
     all_func_info = []
     all_func_info_dict = {}
     with open("debug_info.txt", 'r') as f:
         txt = f.read()
+    
+    get_functions_info(txt)
 
-    cus = get_compilation_uint(txt)
-    for cu in cus:
-        dies = get_die_block_text(cu)
-        func_dies = get_function_dies(dies)
-        #print_str_list(func_dies)
-        _, cu_func_info = get_cu_func_info(func_dies, debug=False, trace=False)
-        all_func_info_dict.update(cu_func_info)
+    #cus = get_compilation_uint(txt)
+    #for cu in cus:
+        # dies = get_die_block_text(cu)
+        # func_dies = get_function_dies(dies)
+        # #print_str_list(func_dies)
+        # _, cu_func_info = get_cu_func_info(func_dies, debug=False, trace=False)
+        # all_func_info_dict.update(cu_func_info)
 
-    print("\nall function info: ")
-    print_str_list(all_func_info_dict.values())
+    # print("\nall function info: ")
+    # print_str_list(all_func_info_dict.values())
     pass 
 
 if __name__ == "__main__":
